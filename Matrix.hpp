@@ -76,6 +76,20 @@ public:
         }
     }
 
+
+    explicit Matrix(const std::vector<double>& _flatten_matrix, const size_t& _size, const size_t& _rows, const size_t& _cols)
+        : Matrix(_rows, _cols) {
+
+        if (_size != _rows * _cols)
+            throw std::invalid_argument("E");
+
+        for (int row = 0, i = 0; row < _rows; ++row) {
+            for (int col = 0; col < _cols; ++col, ++i)
+                data[row][col] = _flatten_matrix[i];
+        }
+    }
+
+
     size_t rows() const { return n_rows; }
     size_t cols() const { return n_cols; }
 

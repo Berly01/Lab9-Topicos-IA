@@ -19,13 +19,17 @@ public:
 
         size_t data_size;
         size_t image_size;
+        size_t rows;
+        size_t cols;
 
         std::vector<Matrix<double>> n_labels;
         std::vector<std::vector<Matrix<double>>> n_images;
 
 
         if (_dataset_name == "minist") {
-            image_size = 28 * 28;
+            rows = 28;
+            cols = 28;
+            image_size = rows * cols;
             if (_split == "train") {
                 image_path = "mnist/train-images-idx3-ubyte";
                 label_path = "mnist/train-labels-idx1-ubyte";
@@ -38,7 +42,10 @@ public:
             }
         }
         else {
-            image_size = 28 * 28;
+            rows = 28;
+            cols = 28;
+            image_size = rows * cols;
+            
             if (_split == "train") {
                 image_path = "fashion/train-images-idx3-ubyte";
                 label_path = "fashion/train-labels-idx1-ubyte";
@@ -64,11 +71,12 @@ public:
             
         for (size_t i = 0; i < data_size; ++i) {
             std::vector<double> vec(image_size, 0.0);
-            
-            for (size_t j = 0; j < image_size; ++j) 
+       
+            for (size_t j = 0; j < image_size; ++j) {
                 vec[j] = static_cast<double>(images[j + (i * image_size)]) / 255.0;
-                                  
-            std::vector<Matrix<double>> v = { Matrix<double>(vec) };
+            }
+                        
+            std::vector<Matrix<double>> v = { Matrix<double>(vec, image_size, rows, cols) };
        
             n_images.emplace_back(v);
         }
