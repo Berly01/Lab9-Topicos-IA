@@ -115,7 +115,6 @@ inline Matrix<double> softmax(const Matrix<double>& input) {
     Matrix<double> result(input.rows(), input.cols());
 
     for (size_t i = 0; i < input.rows(); ++i) {
-        // Encontrar el m�ximo para estabilidad num�rica
         double max_val = input[i][0];
         for (size_t j = 1; j < input.cols(); ++j) {
             if (input[i][j] > max_val) {
@@ -123,14 +122,12 @@ inline Matrix<double> softmax(const Matrix<double>& input) {
             }
         }
 
-        // Calcular exponenciales y suma
         double sum = 0.0;
         for (size_t j = 0; j < input.cols(); ++j) {
             result[i][j] = std::exp(input[i][j] - max_val);
             sum += result[i][j];
         }
 
-        // Normalizar
         for (size_t j = 0; j < input.cols(); ++j) {
             result[i][j] /= sum;
         }
@@ -320,74 +317,30 @@ inline Matrix<double> random_init(
     return m;
 }
 
+/*
 inline double cross_entropy_loss(
     const Matrix<double>& _y_predict,
     const Matrix<double>& _y_true) {
     double loss = 0.0;
     for (size_t i = 0; i < _y_predict.rows(); ++i)
         if (_y_true[i][0] == 1.0)
-            loss = -std::log(_y_predict[i][0] + 1e-9);
+            loss += -std::log(_y_predict[i][0] + 1e-9);
     return loss;
 }
+*/
 
-inline double calculate_accuracy(const Matrix<double>& predictions, const Matrix<double>& targets) {
-    size_t correct = 0;
+inline double cross_entropy_loss(
+    const Matrix<double>& _y_predict,
+    const Matrix<double>& _y_true) {
 
-    size_t pred_class = 0;
-    double max_pred = predictions[i][0];
-    for (size_t j = 1; j < predictions.cols(); ++j) {
-        if (predictions[i][j] > max_pred) {
-            max_pred = predictions[i][j];
-            pred_class = j;
+    double loss = 0.0;
+
+    for (size_t i = 0; i < _y_predict.rows(); ++i) {
+        for (size_t j = 0; j < _y_predict.cols(); ++j) {
+            double p = std::max(_y_predict[i][j], 1e-9);
+            loss += -_y_true[i][j] * std::log(p);
         }
     }
 
-    size_t true_class = 0;
-    for (size_t j = 0; j < targets.cols(); ++j) {
-        if (targets[i][j] > 0.5) { // Asumiendo one-hot encoding
-            true_class = j;
-            break;
-        }
-    }
-
-    if (pred_class == true_class) {
-        correct++;
-    }
-
-    return static_cast<double>(correct) / predictions.rows();
-}
-
-
-double get_accuracy(const std::vector<Matrix<double>>& _testing_data_x,
-        const std::vector<Matrix<double>>& _testing_data_y) {
-
-    int correct = 0;
-    const auto TESTING_SIZE = _testing_data_x.size();
-
-    for (size_t i = 0; i < TESTING_SIZE; ++i) {
-
-        auto y_pre = predict(_testing_data_x[i]);
-
-        size_t predicted = 0;
-        double max_prob = y_pre[0][0];
-        for (size_t j = 1; j < y_pre.rows(); ++j) {
-            if (y_pre[j][0] > max_prob) {
-                max_prob = y_pre[j][0];
-                predicted = j;
-                }
-            }
-
-        size_t actual = 0;
-        for (size_t j = 0; j < _testing_data_y[i].rows(); ++j) {
-            if (_testing_data_y[i][j][0] == 1.0) {
-                actual = j;
-                break;
-            }
-        }
-
-    if (predicted == actual)
-        ++correct;
-    }
-
-    return static_cast<double>(correct) / static_cast<double>(TESTING_SIZE);
+    return loss / _y_predict.rows(); // promedio por muestra
 }

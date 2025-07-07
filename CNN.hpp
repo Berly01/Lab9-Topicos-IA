@@ -61,8 +61,8 @@ private:
     std::vector<Matrix<double>> unflatten(const Matrix<double>& flattened);
 
     void measure(
-        std::ofstream& _loss_file,
-        std::ofstream& _accuracy_file,
+        const std::string& _loss_file_path,
+        const std::string& _accuracy_file_path,
         const size_t& _EPOCH,
         const double& _LOSS,
         const double& _ACCURACY,
@@ -80,11 +80,8 @@ CNN::CNN(const std::vector<ConvLayer>& conv_layers, const std::vector<DenseLayer
 
 Matrix<double> CNN::forward(const std::vector<Matrix<double>>& input) {
 
-    //std::cout << "CNN::forward\n";
-
     std::vector<Matrix<double>> current = input;
 
-    // Guardar las salidas intermedias para el backward pass
     conv_outputs_.clear();
     conv_outputs_.push_back(current);
 
@@ -114,8 +111,6 @@ Matrix<double> CNN::predict(const std::vector<Matrix<double>>& input) {
 
 std::vector<Matrix<double>> CNN::backward(const Matrix<double>& grad_output) {
 
-    //std::cout << "CNN::backward\n";
-
     Matrix<double> grad = grad_output;
 
     for (int i = dense_layers_.size() - 1; i >= 0; --i) {
@@ -133,8 +128,6 @@ std::vector<Matrix<double>> CNN::backward(const Matrix<double>& grad_output) {
 }
 
 void CNN::update_parameters() {
-
-    //std::cout << "CNN::update_parameters\n";
 
     for (auto& layer : conv_layers_) {
         layer.update_parameters();
@@ -174,18 +167,15 @@ TrainingMetrics CNN::train(const std::vector<std::vector<Matrix<double>>>& train
         return ss.str();
         };
 
-    const auto LOSS_FILE_NAME = get_random_name(gen, 6) + "-mlp-loss.csv";
-    const auto ACCURACY_FILE_NAME = get_random_name(gen, 6) + "-mlp-accuracy.csv";
+    const auto LOSS_FILE_NAME = get_random_name(gen, 6) + "-cnn-loss.csv";
+    const auto ACCURACY_FILE_NAME = get_random_name(gen, 6) + "-cnn-accuracy.csv";
 
-    std::ofstream accuracy_file(ACCURACY_FILE_NAME, std::ofstream::trunc);
-    std::ofstream loss_file(LOSS_FILE_NAME, std::ofstream::trunc);
-
-    if (params.save_measure) measure(loss_file, accuracy_file, -1, -1, -1, true);
+    if (params.save_measure) measure(LOSS_FILE_NAME, ACCURACY_FILE_NAME, -1, -1, -1, true);
 
  
     for (size_t epoch = 1; epoch <= params.epochs; ++epoch) {
 
-        std::cout << "Epoch " << epoch << '\n';
+        std::cout << "Epoca " << epoch << '\n';
 
         if (params.shuffle_data) {
             std::shuffle(indices.begin(), indices.end(), gen);
@@ -195,7 +185,6 @@ TrainingMetrics CNN::train(const std::vector<std::vector<Matrix<double>>>& train
         double epoch_train_accuracy = 0.0;
         size_t num_batches = 0;
 
-        // Training phase
         for (size_t batch_start = 0; batch_start < train_data.size(); batch_start += params.batch_size) {
             size_t batch_end = std::min(batch_start + params.batch_size, train_data.size());
             size_t actual_batch_size = batch_end - batch_start;
@@ -203,32 +192,25 @@ TrainingMetrics CNN::train(const std::vector<std::vector<Matrix<double>>>& train
             double batch_loss = 0.0;
             double batch_accuracy = 0.0;
 
-            // Process each sample in the batch
             for (size_t i = batch_start; i < batch_end; ++i) {
                 size_t idx = indices[i];
 
-                // Forward pass
                 Matrix<double> output = forward(train_data[idx]);
                 Matrix<double> predictions = softmax(output);
 
                 double sample_loss = cross_entropy_loss(predictions, train_labels[idx]);
                 batch_loss += sample_loss;
 
-                // Calculate gradients (derivative of cross-entropy + softmax)
                 Matrix<double> grad_output = predictions - train_labels[idx];
 
-                // Backward pass
                 backward(grad_output);
             }
 
             update_parameters();
 
-            batch_loss /= actual_batch_size;
-            epoch_train_loss += batch_loss;
+            epoch_train_loss += batch_loss / static_cast<double>(actual_batch_size);
         }
-
-       
-        // Validation phase
+     
         std::cout << "Validacion\n";
         double val_loss = -1;
         double val_accuracy = -1;
@@ -261,7 +243,6 @@ TrainingMetrics CNN::train(const std::vector<std::vector<Matrix<double>>>& train
 
         epoch_train_accuracy = static_cast<double>(correct) / static_cast<double>(val_data.size());
 
-        // Store metrics
         metrics.train_losses.push_back(epoch_train_loss);
         metrics.train_accuracies.push_back(epoch_train_accuracy);
         metrics.val_losses.push_back(val_loss);
@@ -271,9 +252,7 @@ TrainingMetrics CNN::train(const std::vector<std::vector<Matrix<double>>>& train
             metrics.print_epoch_metrics(epoch, epoch_train_loss, epoch_train_accuracy, val_loss, val_accuracy);
         }
 
-        std::cout << epoch_train_loss << ' ' << epoch_train_accuracy << '\n';
-
-        if (params.save_measure) measure(loss_file, accuracy_file, epoch, epoch_train_loss, epoch_train_accuracy, false);
+        if (params.save_measure) measure(LOSS_FILE_NAME, ACCURACY_FILE_NAME, epoch, epoch_train_loss, epoch_train_accuracy, false);
     }
 
     if (params.verbose) {
@@ -320,19 +299,22 @@ std::vector<Matrix<double>> CNN::unflatten(const Matrix<double>& flattened) {
 
 
 void CNN::measure(
-    std::ofstream& _loss_file,
-    std::ofstream& _accuracy_file,
+    const std::string& _loss_file_path,
+    const std::string& _accuracy_file_path,
     const size_t& _EPOCH,
     const double& _LOSS,
     const double& _ACCURACY,
     const bool& _headers) {
 
+    std::ofstream accuracy_file(_accuracy_file_path, std::ofstream::trunc);
+    std::ofstream loss_file(_loss_file_path, std::ofstream::trunc);
+
     if (_headers) {
-        _loss_file << "epoca,perdida\n";
-        _accuracy_file << "epoca,precision\n";
+        loss_file << "epoca,perdida\n";
+        accuracy_file << "epoca,precision\n";
     }
     else {
-        _loss_file << _EPOCH << ',' << _LOSS << '\n';
-        _accuracy_file << _EPOCH << ',' << _ACCURACY << '\n';
+        loss_file << _EPOCH << ',' << _LOSS << '\n';
+        accuracy_file << _EPOCH << ',' << _ACCURACY << '\n';
     }
 }

@@ -13,11 +13,11 @@ void fashion_cnn() {
     auto& test_labels_data = std::get<0>(TEST_FASHION);
     auto& test_images_data = std::get<1>(TEST_FASHION);
  
-    train_labels_data.erase(train_labels_data.begin(), train_labels_data.begin() + 59900);
-    train_images_data.erase(train_images_data.begin(), train_images_data.begin() + 59900);
+    train_labels_data.erase(train_labels_data.begin(), train_labels_data.begin() + 59000);
+    train_images_data.erase(train_images_data.begin(), train_images_data.begin() + 59000);
 
-    test_labels_data.erase(test_labels_data.begin(), test_labels_data.begin() + 9900);
-    test_images_data.erase(test_images_data.begin(), test_images_data.begin() + 9900);
+    test_labels_data.erase(test_labels_data.begin(), test_labels_data.begin() + 9500);
+    test_images_data.erase(test_images_data.begin(), test_images_data.begin() + 9500);
 
     ConvLayer::ConvLayerHyperparameters conv_params1;
     conv_params1.padding = true;
