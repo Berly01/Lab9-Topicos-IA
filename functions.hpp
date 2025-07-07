@@ -115,7 +115,7 @@ inline Matrix<double> softmax(const Matrix<double>& input) {
     Matrix<double> result(input.rows(), input.cols());
 
     for (size_t i = 0; i < input.rows(); ++i) {
-        // Encontrar el máximo para estabilidad numérica
+        // Encontrar el mï¿½ximo para estabilidad numï¿½rica
         double max_val = input[i][0];
         for (size_t j = 1; j < input.cols(); ++j) {
             if (input[i][j] > max_val) {
@@ -333,30 +333,61 @@ inline double cross_entropy_loss(
 inline double calculate_accuracy(const Matrix<double>& predictions, const Matrix<double>& targets) {
     size_t correct = 0;
 
-    for (size_t i = 0; i < predictions.rows(); ++i) {
-        // Encontrar la clase predicha (índice con mayor probabilidad)
-        size_t pred_class = 0;
-        double max_pred = predictions[i][0];
-        for (size_t j = 1; j < predictions.cols(); ++j) {
-            if (predictions[i][j] > max_pred) {
-                max_pred = predictions[i][j];
-                pred_class = j;
-            }
+    size_t pred_class = 0;
+    double max_pred = predictions[i][0];
+    for (size_t j = 1; j < predictions.cols(); ++j) {
+        if (predictions[i][j] > max_pred) {
+            max_pred = predictions[i][j];
+            pred_class = j;
         }
+    }
 
-        // Encontrar la clase real
-        size_t true_class = 0;
-        for (size_t j = 0; j < targets.cols(); ++j) {
-            if (targets[i][j] > 0.5) { // Asumiendo one-hot encoding
-                true_class = j;
+    size_t true_class = 0;
+    for (size_t j = 0; j < targets.cols(); ++j) {
+        if (targets[i][j] > 0.5) { // Asumiendo one-hot encoding
+            true_class = j;
+            break;
+        }
+    }
+
+    if (pred_class == true_class) {
+        correct++;
+    }
+
+    return static_cast<double>(correct) / predictions.rows();
+}
+
+
+double get_accuracy(const std::vector<Matrix<double>>& _testing_data_x,
+        const std::vector<Matrix<double>>& _testing_data_y) {
+
+    int correct = 0;
+    const auto TESTING_SIZE = _testing_data_x.size();
+
+    for (size_t i = 0; i < TESTING_SIZE; ++i) {
+
+        auto y_pre = predict(_testing_data_x[i]);
+
+        size_t predicted = 0;
+        double max_prob = y_pre[0][0];
+        for (size_t j = 1; j < y_pre.rows(); ++j) {
+            if (y_pre[j][0] > max_prob) {
+                max_prob = y_pre[j][0];
+                predicted = j;
+                }
+            }
+
+        size_t actual = 0;
+        for (size_t j = 0; j < _testing_data_y[i].rows(); ++j) {
+            if (_testing_data_y[i][j][0] == 1.0) {
+                actual = j;
                 break;
             }
         }
 
-        if (pred_class == true_class) {
-            correct++;
-        }
+    if (predicted == actual)
+        ++correct;
     }
 
-    return static_cast<double>(correct) / predictions.rows();
+    return static_cast<double>(correct) / static_cast<double>(TESTING_SIZE);
 }

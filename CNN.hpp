@@ -14,10 +14,10 @@ struct TrainingMetrics {
     void print_epoch_metrics(size_t epoch, double train_loss, double train_acc,
         double val_loss, double val_acc) const {
         std::cout << "Epoch " << std::setw(3) << epoch
-            << " | Train Loss: " << std::fixed << std::setprecision(4) << train_loss
-            << " | Train Acc: " << std::setprecision(3) << train_acc * 100 << "%"
-            << " | Val Loss: " << std::setprecision(4) << val_loss
-            << " | Val Acc: " << std::setprecision(3) << val_acc * 100 << "%"
+            << " | Train Loss: " << train_loss
+            << " | Train Acc: " << train_acc * 100 << "%"
+            << " | Val Loss: " << val_loss
+            << " | Val Acc: " << val_acc * 100 << "%"
             << std::endl;
     }
 };
@@ -80,7 +80,7 @@ CNN::CNN(const std::vector<ConvLayer>& conv_layers, const std::vector<DenseLayer
 
 Matrix<double> CNN::forward(const std::vector<Matrix<double>>& input) {
 
-    std::cout << "CNN::forward\n";
+    //std::cout << "CNN::forward\n";
 
     std::vector<Matrix<double>> current = input;
 
@@ -114,7 +114,7 @@ Matrix<double> CNN::predict(const std::vector<Matrix<double>>& input) {
 
 std::vector<Matrix<double>> CNN::backward(const Matrix<double>& grad_output) {
 
-    std::cout << "CNN::backward\n";
+    //std::cout << "CNN::backward\n";
 
     Matrix<double> grad = grad_output;
 
@@ -134,7 +134,7 @@ std::vector<Matrix<double>> CNN::backward(const Matrix<double>& grad_output) {
 
 void CNN::update_parameters() {
 
-    std::cout << "CNN::update_parameters\n";
+    //std::cout << "CNN::update_parameters\n";
 
     for (auto& layer : conv_layers_) {
         layer.update_parameters();
@@ -161,6 +161,9 @@ TrainingMetrics CNN::train(const std::vector<std::vector<Matrix<double>>>& train
         std::cout << "Learning rate: " << params.learning_rate << std::endl;
     }
 
+    std::random_device rd;
+    std::mt19937 gen(rd());
+
     auto get_random_name = [](std::mt19937& _gen, const size_t& _len) {
         std::stringstream ss;
         std::uniform_int_distribution<> dist(48, 57);
@@ -179,7 +182,11 @@ TrainingMetrics CNN::train(const std::vector<std::vector<Matrix<double>>>& train
 
     if (params.save_measure) measure(loss_file, accuracy_file, -1, -1, -1, true);
 
+ 
     for (size_t epoch = 1; epoch <= params.epochs; ++epoch) {
+
+        std::cout << "Epoch " << epoch << '\n';
+
         if (params.shuffle_data) {
             std::shuffle(indices.begin(), indices.end(), gen);
         }
@@ -204,13 +211,8 @@ TrainingMetrics CNN::train(const std::vector<std::vector<Matrix<double>>>& train
                 Matrix<double> output = forward(train_data[idx]);
                 Matrix<double> predictions = softmax(output);
 
-                // Calculate loss
                 double sample_loss = cross_entropy_loss(predictions, train_labels[idx]);
                 batch_loss += sample_loss;
-
-                // Calculate accuracy
-                double sample_accuracy = calculate_accuracy(predictions, train_labels[idx]);
-                batch_accuracy += sample_accuracy;
 
                 // Calculate gradients (derivative of cross-entropy + softmax)
                 Matrix<double> grad_output = predictions - train_labels[idx];
@@ -222,31 +224,42 @@ TrainingMetrics CNN::train(const std::vector<std::vector<Matrix<double>>>& train
             update_parameters();
 
             batch_loss /= actual_batch_size;
-            batch_accuracy /= actual_batch_size;
-
             epoch_train_loss += batch_loss;
-            epoch_train_accuracy += batch_accuracy;
-            num_batches++;
         }
 
-        epoch_train_loss /= num_batches;
-        epoch_train_accuracy /= num_batches;
-
+       
         // Validation phase
         std::cout << "Validacion\n";
-        double val_loss = 0.0;
-        double val_accuracy = 0.0;
+        double val_loss = -1;
+        double val_accuracy = -1;
+        int correct = 0;
 
         for (size_t i = 0; i < val_data.size(); ++i) {
             Matrix<double> output = forward(val_data[i]);
-            Matrix<double> predictions = softmax(output);
+            Matrix<double> prediction = softmax(output);
 
-            val_loss += cross_entropy_loss(predictions, val_labels[i]);
-            val_accuracy += calculate_accuracy(predictions, val_labels[i]);
+            size_t predicted = 0;
+            double max_prob = prediction[0][0];
+            for (size_t j = 1; j < prediction.rows(); ++j) {
+                if (prediction[j][0] > max_prob) {
+                    max_prob = prediction[j][0];
+                    predicted = j;
+                }
+            }
+
+            size_t actual = 0;
+            for (size_t j = 0; j < val_labels[i].rows(); ++j) {
+                if (val_labels[i][j][0] == 1.0) {
+                    actual = j;
+                    break;
+                }
+            }
+
+            if (predicted == actual)
+                ++correct;
         }
 
-        val_loss /= val_data.size();
-        val_accuracy /= val_data.size();
+        epoch_train_accuracy = static_cast<double>(correct) / static_cast<double>(val_data.size());
 
         // Store metrics
         metrics.train_losses.push_back(epoch_train_loss);
@@ -257,6 +270,8 @@ TrainingMetrics CNN::train(const std::vector<std::vector<Matrix<double>>>& train
         if (params.verbose && (epoch) % params.print_every == 0) {
             metrics.print_epoch_metrics(epoch, epoch_train_loss, epoch_train_accuracy, val_loss, val_accuracy);
         }
+
+        std::cout << epoch_train_loss << ' ' << epoch_train_accuracy << '\n';
 
         if (params.save_measure) measure(loss_file, accuracy_file, epoch, epoch_train_loss, epoch_train_accuracy, false);
     }

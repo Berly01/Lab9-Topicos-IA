@@ -176,7 +176,6 @@ ConvLayer::ConvLayer(
             int c = 1;
             for (const auto& channel : filters_[f]) {
                 std::cout << "CANAL " << c << '\n';
-                channel.print(12);
                 std::cout << '\n';
                 ++c;
             }
@@ -356,7 +355,6 @@ Matrix<double> ConvLayer::pooling_backward(
     const size_t& _pool_size,
     const PoolMode& _pool_mode) const {
 
-    std::cout << "ConvLayer::pooling_backward\n";
     Matrix<double> grad_input(_original_input.rows(), _original_input.cols(), 0.0);
 
     for (size_t i = 0; i < _grad_output.rows(); ++i) {
@@ -389,7 +387,6 @@ Matrix<double> ConvLayer::convolution(
     const size_t& _padding,
     const size_t& _stride) const {
 
-    std::cout << "ConvLayer::convolution\n";
 
     if (_input_channels.size() != _kernels.size())
         throw std::invalid_argument("Cantidad de canales no coincide con kernels del filtro");
@@ -433,7 +430,6 @@ std::vector<Matrix<double>> ConvLayer::convolution_backward_input(
     const size_t& _padding,
     const size_t& _stride) const {
 
-    std::cout << "ConvLayer::convolution_backward_input\n";
 
     std::vector<Matrix<double>> grad_input;
 
@@ -477,7 +473,6 @@ std::vector<Matrix<double>> ConvLayer::convolution_backward_kernel(
     const std::vector<Matrix<double>>& _input_channels,
     const size_t& _stride) const {
 
-    std::cout << "ConvLayer::convolution_backward_kernel\n";
     
     std::vector<Matrix<double>> grad_kernels;
    
@@ -515,8 +510,6 @@ std::vector<Matrix<double>> ConvLayer::convolution_backward_kernel(
 
 std::vector<Matrix<double>> ConvLayer::forward(
     const std::vector<Matrix<double>>& _input_channels) {
-
-    std::cout << "ConvLayer::forward\n";
 
     cache_.input_channels = _input_channels;
     cache_.padded_inputs.clear();
@@ -577,7 +570,7 @@ std::vector<Matrix<double>> ConvLayer::forward(
         int c = 1;
         for (const auto& m : outputs) {
             std::cout << "CANAL " << c << '\n';
-            m.print(12);
+            //m.print(12);
             std::cout << '\n';
             ++c;
         }
@@ -588,8 +581,6 @@ std::vector<Matrix<double>> ConvLayer::forward(
 
 std::vector<Matrix<double>> ConvLayer::backward(
     const std::vector<Matrix<double>>& _grad_output) {
-
-    std::cout << "ConvLayer::backward\n";
 
     for (auto& grad_filter : grad_filters_) {
         for (auto& grad_channel : grad_filter) {

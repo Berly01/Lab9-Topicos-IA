@@ -4,8 +4,8 @@
 
 void fashion_cnn() {
 
-    const auto TRAIN_FASHION = DataLoader::cnn_load_one_channel("fashion", "train");
-    const auto TEST_FASHION = DataLoader::cnn_load_one_channel("fashion", "test");
+    auto TRAIN_FASHION = DataLoader::cnn_load_one_channel("fashion", "train");
+    auto TEST_FASHION = DataLoader::cnn_load_one_channel("fashion", "test");
 
     auto& train_labels_data = std::get<0>(TRAIN_FASHION);
     auto& train_images_data = std::get<1>(TRAIN_FASHION);
@@ -13,11 +13,17 @@ void fashion_cnn() {
     auto& test_labels_data = std::get<0>(TEST_FASHION);
     auto& test_images_data = std::get<1>(TEST_FASHION);
  
+    train_labels_data.erase(train_labels_data.begin(), train_labels_data.begin() + 59900);
+    train_images_data.erase(train_images_data.begin(), train_images_data.begin() + 59900);
+
+    test_labels_data.erase(test_labels_data.begin(), test_labels_data.begin() + 9900);
+    test_images_data.erase(test_images_data.begin(), test_images_data.begin() + 9900);
+
     ConvLayer::ConvLayerHyperparameters conv_params1;
     conv_params1.padding = true;
     conv_params1.pooling = true;
     conv_params1.activation = true;
-    conv_params1.debug = true;
+    conv_params1.debug = false;
     conv_params1.learning_rate = 0.002;
     conv_params1.padding_size = 1;
     conv_params1.stride = 1;
@@ -30,7 +36,7 @@ void fashion_cnn() {
     conv_params2.padding = true;
     conv_params2.pooling = true;
     conv_params2.activation = true;
-    conv_params2.debug = true;
+    conv_params2.debug = false;
     conv_params2.learning_rate = 0.002;
     conv_params2.padding_size = 1;
     conv_params2.stride = 1;
@@ -68,6 +74,7 @@ void fashion_cnn() {
     train_params.early_stopping = false;
     train_params.patience = 10;
     train_params.print_every = 1;
+    train_params.save_measure = true;
 
     TrainingMetrics metrics = cnn.train(train_images_data, train_labels_data, test_images_data, test_labels_data, train_params);
 }
