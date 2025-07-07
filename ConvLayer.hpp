@@ -565,8 +565,9 @@ std::vector<Matrix<double>> ConvLayer::forward(
         ++k;
     }
 
+    std::cout << "\nRESULTADO FINAL: " << outputs[0].rows() << 'x' << outputs[0].cols() << 'x' << outputs.size() << '\n';
+
     if (h_.debug) {
-        std::cout << "\nRESULTADO FINAL: " << outputs[0].rows() << 'x' << outputs[0].cols() << 'x' << outputs.size() << '\n';
         int c = 1;
         for (const auto& m : outputs) {
             std::cout << "CANAL " << c << '\n';

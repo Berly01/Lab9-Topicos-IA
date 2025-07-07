@@ -54,8 +54,6 @@ DenseLayer::DenseLayer(size_t input_size, size_t output_size, const DenseLayerHy
 
 Matrix<double> DenseLayer::forward(const Matrix<double>& input) {
 
-    std::cout<< "DenseLayer::forward\n";
-
     cached_input_ = input;
 
     Matrix<double> output = CU::dot_product(weights_, input);
@@ -80,8 +78,6 @@ Matrix<double> DenseLayer::forward(const Matrix<double>& input) {
 }
 
 Matrix<double> DenseLayer::backward(const Matrix<double>& grad_output) {
-
-    std::cout<< "DenseLayer::backward\n";
 
     Matrix<double> grad = grad_output;
 
@@ -123,8 +119,6 @@ Matrix<double> DenseLayer::backward(const Matrix<double>& grad_output) {
 }
 
 void DenseLayer::update_parameters() {
-
-    std::cout<< "DenseLayer::update_parameters\n";
 
     for (size_t i = 0; i < weights_.rows(); ++i) {
         for (size_t j = 0; j < weights_.cols(); ++j) {
