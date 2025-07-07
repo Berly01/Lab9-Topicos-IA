@@ -1,5 +1,6 @@
 ﻿#include "DataLoader.hpp"
 #include "CNN.hpp"
+#include "MLP.hpp"
 
 
 void fashion_cnn() {
@@ -54,7 +55,7 @@ void fashion_cnn() {
     dense_params.activation_func = Activation::RELU;
     dense_params.init = Initializer::N_HE;
 
-    auto first_dense_layer = 197 * 1 * 4;
+    auto first_dense_layer = 8 * 8 * 4;
 
     std::vector<DenseLayer> dense_layers;
     dense_layers.emplace_back(first_dense_layer, 16, dense_params);
@@ -63,7 +64,6 @@ void fashion_cnn() {
     output_params.use_activation = false;
     dense_layers.emplace_back(16, 10, output_params);
 
-
     CNN cnn(conv_layers, dense_layers);
 
     CNN::CNNHyperparameters train_params;
@@ -71,18 +71,42 @@ void fashion_cnn() {
     train_params.batch_size = 32;
     train_params.learning_rate = 0.002;
     train_params.verbose = true;
-    train_params.early_stopping = false;
-    train_params.patience = 10;
     train_params.print_every = 1;
     train_params.save_measure = true;
 
     TrainingMetrics metrics = cnn.train(train_images_data, train_labels_data, test_images_data, test_labels_data, train_params);
 }
 
+void fashion_mlp() {
+
+    auto TRAIN_FASHION = DataLoader::mlp_load_one_channel("fashion", "train");
+    auto TEST_FASHION = DataLoader::mlp_load_one_channel("fashion", "test");
+
+    auto& train_labels_data = std::get<0>(TRAIN_FASHION);
+    auto& train_images_data = std::get<1>(TRAIN_FASHION);
+
+    auto& test_labels_data = std::get<0>(TEST_FASHION);
+    auto& test_images_data = std::get<1>(TEST_FASHION);
+ 
+    MLPHyperparameters h;
+    h.learning_rate = 0.002;
+    h.batch = 32;
+    h.epochs = 20;
+    h.shuffle = true;
+    h.save_measure = true;
+    h.layers = { 784, 16, 10 };
+    h.initializer = Initializer::N_HE;
+    h.optimizer = Optimizer::NONE;
+
+    MLP<ReluFunctor, DReluFunctor> mlp(h);
+
+    mlp.train(train_images_data, train_labels_data, test_images_data, test_labels_data);
+}
+
+
 int main() {
 
     fashion_cnn();
-
 
 	return 0;
 }

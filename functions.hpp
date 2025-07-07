@@ -317,30 +317,13 @@ inline Matrix<double> random_init(
     return m;
 }
 
-/*
+
 inline double cross_entropy_loss(
     const Matrix<double>& _y_predict,
     const Matrix<double>& _y_true) {
     double loss = 0.0;
     for (size_t i = 0; i < _y_predict.rows(); ++i)
         if (_y_true[i][0] == 1.0)
-            loss += -std::log(_y_predict[i][0] + 1e-9);
+            loss += -std::log(_y_predict[i][0] + 1e-12);
     return loss;
-}
-*/
-
-inline double cross_entropy_loss(
-    const Matrix<double>& _y_predict,
-    const Matrix<double>& _y_true) {
-
-    double loss = 0.0;
-
-    for (size_t i = 0; i < _y_predict.rows(); ++i) {
-        for (size_t j = 0; j < _y_predict.cols(); ++j) {
-            double p = std::max(_y_predict[i][j], 1e-9);
-            loss += -_y_true[i][j] * std::log(p);
-        }
-    }
-
-    return loss / _y_predict.rows(); // promedio por muestra
 }

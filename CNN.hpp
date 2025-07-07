@@ -149,9 +149,9 @@ TrainingMetrics CNN::train(const std::vector<std::vector<Matrix<double>>>& train
     std::iota(indices.begin(), indices.end(), 0);
 
     if (params.verbose) {
-        std::cout << "Starting training for " << params.epochs << " epochs..." << std::endl;
-        std::cout << "Batch size: " << params.batch_size << std::endl;
-        std::cout << "Learning rate: " << params.learning_rate << std::endl;
+        std::cout << "Entranamiento para " << params.epochs << " epocas" << std::endl;
+        std::cout << "Batch: " << params.batch_size << std::endl;
+        std::cout << "Taza de aprendizaje: " << params.learning_rate << std::endl;
     }
 
     std::random_device rd;
@@ -256,9 +256,8 @@ TrainingMetrics CNN::train(const std::vector<std::vector<Matrix<double>>>& train
     }
 
     if (params.verbose) {
-        std::cout << "Training completed!" << std::endl;
-        std::cout << "Final validation accuracy: "
-            << std::fixed << std::setprecision(3)
+        std::cout << "Entrenamiento Finalizado" << std::endl;
+        std::cout << "Final Presicion Final: "
             << metrics.val_accuracies.back() * 100 << "%" << std::endl;
     }
 
