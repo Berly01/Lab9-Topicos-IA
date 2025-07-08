@@ -92,7 +92,7 @@ public:
         const std::vector<Matrix<double>>& train_labels,
         const std::vector<std::vector<Matrix<double>>>& val_data,
         const std::vector<Matrix<double>>& val_labels,
-        const CNNHyperparameters& params = CNNHyperparameters{}) {
+        const CNNHyperparameters& params) {
 
         if (train_data.size() != train_labels.size()
             || val_data.size() != val_labels.size())
@@ -148,9 +148,9 @@ public:
 
                     Matrix<double> output = forward(train_data[idx]);
 
-                    Matrix<double> predictions = CNN::softmax(output);
+                    Matrix<double> predictions = softmax(output);
 
-                    double sample_loss = CNN::cross_entropy_loss(predictions, train_labels[idx]);
+                    double sample_loss = cross_entropy_loss(predictions, train_labels[idx]);
                     batch_loss += sample_loss;
 
                     Matrix<double> grad_output = predictions - train_labels[idx];
@@ -181,14 +181,56 @@ public:
         }
 
         if (params.verbose) {
-            std::cout << "Entrenamiento Finalizado" << std::endl;
-            std::cout << "Presicion Final: "
-                << std::fixed << std::setprecision(3)
-                << metrics.val_accuracies.back() * 100 << "%" << std::endl;
+            std::cout << "Entrenamiento Finalizado" << std::endl
+                << "Perdida Final: "
+                << metrics.train_losses.back() << std::endl
+                << "Presicion Final: "
+                << metrics.train_accuracies.back() * 100 << "%" << std::endl;          
         }
 
         return metrics;
     }
+
+
+    static size_t calculate_dense_layer_inputs(size_t initial_height,
+                                  size_t initial_width,
+                                  const std::vector<ConvLayer>& conv_layers) {
+        if (conv_layers.empty()) {
+            throw std::invalid_argument("Se requiere al menos una capa convolucional");
+        }
+        
+        size_t current_height = initial_height;
+        size_t current_width = initial_width;
+        size_t current_channels = 1; // Asumiendo entrada inicial de 1 canal
+        
+        for (const auto& layer : conv_layers) {
+            size_t kernel_size = layer.get_kernel_size();
+            size_t padding = layer.get_padding_size();
+            size_t stride = layer.get_stride_size();
+            size_t pool_size = layer.get_pool_size();
+            bool uses_pooling = layer.uses_pooling();
+            
+            // Aplicar convolución: (input + 2*padding - kernel) / stride + 1
+            current_height = (current_height + 2 * padding - kernel_size) / stride + 1;
+            current_width = (current_width + 2 * padding - kernel_size) / stride + 1;
+            
+            // Aplicar pooling si está habilitado
+            if (uses_pooling && pool_size > 0) {
+                current_height = current_height / pool_size;
+                current_width = current_width / pool_size;
+            }
+            
+            // Actualizar número de canales de salida
+            current_channels = layer.get_out_channels();
+            
+            if (current_height == 0 || current_width == 0) {
+                throw std::runtime_error("Las dimensiones se redujeron a cero");
+            }
+        }
+        
+        return current_height * current_width * current_channels;
+}
+
 
 private:
 
@@ -259,8 +301,8 @@ private:
     }
 
     void save_measure(
-        std::string& _loss_file_path,
-        std::string& _accuracy_file_path,
+        const std::string& _loss_file_path,
+        const std::string& _accuracy_file_path,
         const size_t& _EPOCH,
         const double& _LOSS,
         const double& _ACCURACY,

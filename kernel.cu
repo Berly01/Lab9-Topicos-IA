@@ -1,7 +1,6 @@
 ﻿#include "DataLoader.hpp"
 #include "CNN.hpp"
 #include "MLP.hpp"
-#include "utils_data.hpp"
 
 void fashion_cnn() {
 
@@ -96,7 +95,7 @@ void fashion_mlp() {
     test_labels_data.erase(test_labels_data.begin(), test_labels_data.begin() + 9500);
     test_images_data.erase(test_images_data.begin(), test_images_data.begin() + 9500);
  
-    MLPHyperparameters h;
+    MLP::MLPHyperparameters h;
     h.learning_rate = 0.002;
     h.batch = 32;
     h.epochs = 1;
@@ -106,6 +105,8 @@ void fashion_mlp() {
     h.initializer = Initializer::N_HE;
     h.optimizer = Optimizer::NONE;
     h.activation_func = Activation::RELU;
+    h.verbose = true;
+    h.print_every = 1;
 
     MLP mlp(h);
 

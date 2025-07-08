@@ -77,6 +77,10 @@ public:
 
     bool uses_pooling() const { return h_.pooling; }
 
+    size_t get_out_channels() const { return out_channels_; }
+
+    size_t get_in_channels() const { return in_channels_; }
+
 private:
     std::vector<Matrix<double>> create_kernel(
         const size_t& _rows,

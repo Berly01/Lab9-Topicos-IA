@@ -8,10 +8,10 @@ struct TrainingMetrics {
     std::vector<double> train_losses;
     std::vector<double> train_accuracies;
 
-    void print_epoch_metrics(size_t epoch, double train_loss, double train_accuracy) const {
-        std::cout << "Epoca " << epoch
-            << " | Perdida: " << train_loss
-            << " | Presicion: " << train_acc * 100 << "%"
+    void print_epoch_metrics(size_t _epoch, double _train_loss, double _train_accuracy) const {
+        std::cout << "Epoca " << _epoch
+            << " | Perdida: " << _train_loss
+            << " | Presicion: " << _train_accuracy * 100 << "%"
             << std::endl;
     }
 };
@@ -120,31 +120,6 @@ inline double tanhm(const double& _x) {
 inline double tanh_deri(const double& _x) {
     const auto f = tanhm(_x);
     return 1.0 - f * f;
-}
-
-inline Matrix<double> softmax(const Matrix<double>& input) {
-    Matrix<double> result(input.rows(), input.cols());
-
-    for (size_t i = 0; i < input.rows(); ++i) {
-        double max_val = input[i][0];
-        for (size_t j = 1; j < input.cols(); ++j) {
-            if (input[i][j] > max_val) {
-                max_val = input[i][j];
-            }
-        }
-
-        double sum = 0.0;
-        for (size_t j = 0; j < input.cols(); ++j) {
-            result[i][j] = std::exp(input[i][j] - max_val);
-            sum += result[i][j];
-        }
-
-        for (size_t j = 0; j < input.cols(); ++j) {
-            result[i][j] /= sum;
-        }
-    }
-
-    return result;
 }
 
 

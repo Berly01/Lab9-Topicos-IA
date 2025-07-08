@@ -15,14 +15,7 @@
 
 class MLP {
 
-private:
-    std::vector<MLP_Layer> hidden_layers;
-    std::mt19937 gen;
-    MLPHyperparameters h;
-    bool training_mode = true;
-
 public:
-
     struct MLPHyperparameters {
         std::vector<size_t> layers = { 2, 2, 3 };
         Initializer initializer = Initializer::RANDOM;
@@ -46,6 +39,14 @@ public:
         bool save_measure = false;
         bool verbose = false;
     };
+
+private:
+    std::vector<MLP_Layer> hidden_layers;
+    std::mt19937 gen;
+    MLPHyperparameters h;
+    bool training_mode = true;
+
+public:
 
     explicit MLP(const MLPHyperparameters& _h) : gen(std::random_device{}()), h(_h) {
 
@@ -128,25 +129,28 @@ public:
                 total_loss += update_mini_batch(batch_x, batch_y);
             }
 
+            total_loss /= static_cast<double>(TRAINING_SIZE);
+
             const auto accuracy = get_accuracy(_testing_data_x, _testing_data_y);
 
-            metrics.train_losses.push_back(epoch_train_loss);
-            metrics.train_accuracies.push_back(epoch_train_accuracy);
+            metrics.train_losses.push_back(total_loss);
+            metrics.train_accuracies.push_back(accuracy);
 
-            if (h.verbose && (epoch + 1) % h.print_every == 0) {
-                metrics.print_epoch_metrics(epoch + 1, epoch_train_loss, epoch_train_accuracy);
+            if (h.verbose && (e + 1) % h.print_every == 0) {
+                metrics.print_epoch_metrics(e + 1, total_loss, accuracy);
             }
 
-            if (h.save_measure) save_measure(LOSS_FILE_NAME, ACCURACY_FILE_NAME, e, total_loss / static_cast<double>(TRAINING_SIZE), accuracy, false);
+            if (h.save_measure) save_measure(LOSS_FILE_NAME, ACCURACY_FILE_NAME, e, total_loss, accuracy, false);
 
             total_loss = 0;
         }
 
         if (h.verbose) {
-            std::cout << "Entrenamiento Finalizado" << std::endl;
-            std::cout << "Presicion Final: "
-                << std::fixed << std::setprecision(3)
-                << metrics.val_accuracies.back() * 100 << "%" << std::endl;
+            std::cout << "Entrenamiento Finalizado" << std::endl
+                << "Perdida Final: "
+                << metrics.train_losses.back() << std::endl
+                << "Presicion Final: " 
+                << metrics.train_accuracies.back() * 100 << "%" << std::endl;          
         }
 
         return metrics;
@@ -375,8 +379,8 @@ private:
     }
 
     void save_measure(
-        std::string& _loss_file_path,
-        std::string& _accuracy_file_path,
+        const std::string& _loss_file_path,
+        const std::string& _accuracy_file_path,
         const size_t& _EPOCH,
         const double& _LOSS,
         const double& _ACCURACY,
