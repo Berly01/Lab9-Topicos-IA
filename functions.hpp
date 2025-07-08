@@ -4,13 +4,24 @@
 #include "Matrix.hpp"
 #include <random>
 
+struct TrainingMetrics {
+    std::vector<double> train_losses;
+    std::vector<double> train_accuracies;
+
+    void print_epoch_metrics(size_t epoch, double train_loss, double train_accuracy) const {
+        std::cout << "Epoca " << epoch
+            << " | Perdida: " << train_loss
+            << " | Presicion: " << train_acc * 100 << "%"
+            << std::endl;
+    }
+};
+
 enum class Activation { SIGMOID, RELU, TANH };
 
 enum class Initializer { U_XAVIER, N_XAVIER, U_HE, N_HE, RANDOM };
 
 enum class Optimizer { ADAM, RMS_PROP, NONE };
 
-enum class LossFunction { MSE, CROSS_ENTROPY };
 
 struct SigmoidFunctor {
     __device__ double operator()(const double& x) const {
@@ -279,7 +290,6 @@ inline Matrix<double> xavier_normal_init(
     return m;
 }
 
-
 inline Matrix<double> xavier_uniform_init(
     const size_t& _rows,
     const size_t& _cols,
@@ -317,6 +327,26 @@ inline Matrix<double> random_init(
     return m;
 }
 
+Matrix<double> softmax(const Matrix<double>& m) {
+    const auto ROWS = m.rows();
+
+    Matrix<double> result(ROWS, 1);
+
+    double max_val = m[0][0];
+    for (size_t i = 1; i < ROWS; ++i)
+        if (m[i][0] > max_val) max_val = m[i][0];
+
+    double sum_exp = 0.0;
+    for (size_t i = 0; i < ROWS; ++i) {
+        result[i][0] = std::exp(m[i][0] - max_val);
+        sum_exp += result[i][0];
+    }
+
+    for (size_t i = 0; i < ROWS; ++i)
+        result[i][0] /= sum_exp;
+
+    return result;
+}
 
 inline double cross_entropy_loss(
     const Matrix<double>& _y_predict,
@@ -327,3 +357,4 @@ inline double cross_entropy_loss(
             loss += -std::log(_y_predict[i][0] + 1e-12);
     return loss;
 }
+

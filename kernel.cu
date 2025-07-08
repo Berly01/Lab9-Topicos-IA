@@ -1,7 +1,7 @@
 ﻿#include "DataLoader.hpp"
 #include "CNN.hpp"
 #include "MLP.hpp"
-
+#include "utils_data.hpp"
 
 void fashion_cnn() {
 
@@ -19,6 +19,7 @@ void fashion_cnn() {
 
     test_labels_data.erase(test_labels_data.begin(), test_labels_data.begin() + 9500);
     test_images_data.erase(test_images_data.begin(), test_images_data.begin() + 9500);
+
 
     ConvLayer::ConvLayerHyperparameters conv_params1;
     conv_params1.padding = true;
@@ -53,6 +54,7 @@ void fashion_cnn() {
     DenseLayer::DenseLayerHyperparameters dense_params;
     dense_params.learning_rate = 0.002;
     dense_params.activation_func = Activation::RELU;
+    dense_params.use_bias = true;
     dense_params.init = Initializer::N_HE;
 
     auto first_dense_layer = 8 * 8 * 4;
@@ -67,7 +69,7 @@ void fashion_cnn() {
     CNN cnn(conv_layers, dense_layers);
 
     CNN::CNNHyperparameters train_params;
-    train_params.epochs = 20;
+    train_params.epochs = 1;
     train_params.batch_size = 32;
     train_params.learning_rate = 0.002;
     train_params.verbose = true;
@@ -87,18 +89,25 @@ void fashion_mlp() {
 
     auto& test_labels_data = std::get<0>(TEST_FASHION);
     auto& test_images_data = std::get<1>(TEST_FASHION);
+
+    train_labels_data.erase(train_labels_data.begin(), train_labels_data.begin() + 59000);
+    train_images_data.erase(train_images_data.begin(), train_images_data.begin() + 59000);
+
+    test_labels_data.erase(test_labels_data.begin(), test_labels_data.begin() + 9500);
+    test_images_data.erase(test_images_data.begin(), test_images_data.begin() + 9500);
  
     MLPHyperparameters h;
     h.learning_rate = 0.002;
     h.batch = 32;
-    h.epochs = 20;
+    h.epochs = 1;
     h.shuffle = true;
     h.save_measure = true;
     h.layers = { 784, 16, 10 };
     h.initializer = Initializer::N_HE;
     h.optimizer = Optimizer::NONE;
+    h.activation_func = Activation::RELU;
 
-    MLP<ReluFunctor, DReluFunctor> mlp(h);
+    MLP mlp(h);
 
     mlp.train(train_images_data, train_labels_data, test_images_data, test_labels_data);
 }

@@ -7,33 +7,12 @@
 #include <sstream>
 #include <tuple>
 #include <numeric>
+#include <iomanip>
 #include "MLP_Layer.hpp"
 #include "utils_cuda.hpp"
 #include "functions.hpp"
 
 
-struct MLPHyperparameters {
-    std::vector<size_t> layers = { 2, 2, 3 };
-    Initializer initializer = Initializer::RANDOM;
-    Optimizer optimizer = Optimizer::NONE;
-    double learning_rate = 0.01;
-    size_t batch = 16;
-    size_t epochs = 10;
-    double decay_rate = 0.9;
-    double epsilon = 1e-8;
-    double weight_decay = 0.01;
-    double beta1 = 0.9;
-    double beta2 = 0.999;
-    double bias_init = 0.0;
-    size_t timestep = 1;
-    double dropout_rate = 0.2;
-    bool shuffle = false;
-    bool debug = false;
-    bool dropout = false;
-    bool save_measure = false;
-};
-
-template<typename ACTIVATION, typename D_ACTIVATION>
 class MLP {
 
 private:
@@ -42,10 +21,188 @@ private:
     MLPHyperparameters h;
     bool training_mode = true;
 
-    ACTIVATION activation = ACTIVATION();
-    D_ACTIVATION d_activation = D_ACTIVATION();
-    SoftmaxFunctor o_activation = SoftmaxFunctor();
+public:
 
+    struct MLPHyperparameters {
+        std::vector<size_t> layers = { 2, 2, 3 };
+        Initializer initializer = Initializer::RANDOM;
+        Optimizer optimizer = Optimizer::NONE;
+        Activation activation_func = Activation::RELU;
+        double learning_rate = 0.01;
+        size_t batch = 16;
+        size_t epochs = 10;
+        double decay_rate = 0.9;
+        double epsilon = 1e-8;
+        double weight_decay = 0.01;
+        double beta1 = 0.9;
+        double beta2 = 0.999;
+        double bias_init = 0.0;
+        size_t timestep = 1;
+        size_t print_every = 10;
+        double dropout_rate = 0.2;
+        bool shuffle = false;
+        bool debug = false;
+        bool dropout = false;
+        bool save_measure = false;
+        bool verbose = false;
+    };
+
+    explicit MLP(const MLPHyperparameters& _h) : gen(std::random_device{}()), h(_h) {
+
+        const auto LAYERS_SIZE = h.layers.size();
+        const auto& layers = h.layers;
+
+        for (size_t i = 1; i < LAYERS_SIZE; ++i)
+            hidden_layers.emplace_back(layers[i - 1], layers[i], h.initializer, h.bias_init, gen);
+    }
+
+    explicit MLP(const std::string& _file_name, const MLPHyperparameters& _h)
+        : gen(std::random_device{}()), h(_h) {
+            
+        std::ifstream in(_file_name + ".dat", std::ios::binary);
+
+        size_t size{};
+        in.read(reinterpret_cast<char*>(&size), sizeof(size));
+        hidden_layers.reserve(size);
+      
+        for (size_t i = 0; i < size; ++i) {      
+            MLP_Layer layer;
+            in >> layer.weights >> layer.biases;
+            hidden_layers.emplace_back(layer);
+        }
+
+        in.close();
+    }
+
+    ~MLP() = default;
+
+    TrainingMetrics train(const std::vector<Matrix<double>>& _training_data_x,
+        const std::vector<Matrix<double>>& _training_data_y,
+        const std::vector<Matrix<double>>& _testing_data_x,
+        const std::vector<Matrix<double>>& _testing_data_y) {
+
+        if (_training_data_x.size() != _training_data_y.size()
+            || _testing_data_x.size() != _testing_data_y.size())
+            throw std::invalid_argument("E");
+                
+        TrainingMetrics metrics;
+
+        auto get_random_name = [](std::mt19937& _gen, const size_t& _len) {
+            std::stringstream ss;
+            std::uniform_int_distribution<> dist(48, 57);
+
+            for (size_t i = 0; i < _len; ++i)
+                ss << static_cast<char>(dist(_gen));
+
+            return ss.str();
+            };
+
+        const auto TRAINING_SIZE = _training_data_x.size();
+        const auto LAYERS_SIZE = hidden_layers.size();
+
+        const auto LOSS_FILE_NAME = get_random_name(gen, 6) + "-mlp-loss.csv";
+        const auto ACCURACY_FILE_NAME = get_random_name(gen, 6) + "-mlp-accuracy.csv";
+        double total_loss = 0;
+
+        std::vector<size_t> random_indices(TRAINING_SIZE);
+        std::iota(random_indices.begin(), random_indices.end(), 0);
+
+        size_t begin{};
+        size_t end{};
+
+        if (h.save_measure) save_measure(LOSS_FILE_NAME, ACCURACY_FILE_NAME, -1, -1, -1, true);
+
+        for (size_t e = 0; e < h.epochs; ++e) {
+
+            training_mode = true;
+
+            if (h.shuffle) std::shuffle(random_indices.begin(), random_indices.end(), gen);
+
+            for (begin = 0; begin < TRAINING_SIZE; begin += h.batch) {
+                end = std::min(begin + h.batch, TRAINING_SIZE);
+                std::vector<Matrix<double>> batch_x, batch_y;
+                for (size_t j = begin; j < end; ++j) {
+                    batch_x.push_back(_training_data_x[random_indices[j]]);
+                    batch_y.push_back(_training_data_y[random_indices[j]]);
+                }
+                total_loss += update_mini_batch(batch_x, batch_y);
+            }
+
+            const auto accuracy = get_accuracy(_testing_data_x, _testing_data_y);
+
+            metrics.train_losses.push_back(epoch_train_loss);
+            metrics.train_accuracies.push_back(epoch_train_accuracy);
+
+            if (h.verbose && (epoch + 1) % h.print_every == 0) {
+                metrics.print_epoch_metrics(epoch + 1, epoch_train_loss, epoch_train_accuracy);
+            }
+
+            if (h.save_measure) save_measure(LOSS_FILE_NAME, ACCURACY_FILE_NAME, e, total_loss / static_cast<double>(TRAINING_SIZE), accuracy, false);
+
+            total_loss = 0;
+        }
+
+        if (h.verbose) {
+            std::cout << "Entrenamiento Finalizado" << std::endl;
+            std::cout << "Presicion Final: "
+                << std::fixed << std::setprecision(3)
+                << metrics.val_accuracies.back() * 100 << "%" << std::endl;
+        }
+
+        return metrics;
+    }
+
+    double get_accuracy(const std::vector<Matrix<double>>& _testing_data_x,
+        const std::vector<Matrix<double>>& _testing_data_y) {
+
+        if (training_mode) training_mode = false;
+
+        int correct = 0;
+        const auto TESTING_SIZE = _testing_data_x.size();
+
+        for (size_t i = 0; i < TESTING_SIZE; ++i) {
+
+            auto y_pre = predict(_testing_data_x[i]);
+
+            size_t predicted = 0;
+            double max_prob = y_pre[0][0];
+            for (size_t j = 1; j < y_pre.rows(); ++j) {
+                if (y_pre[j][0] > max_prob) {
+                    max_prob = y_pre[j][0];
+                    predicted = j;
+                }
+            }
+
+            size_t actual = 0;
+            for (size_t j = 0; j < _testing_data_y[i].rows(); ++j) {
+                if (_testing_data_y[i][j][0] == 1.0) {
+                    actual = j;
+                    break;
+                }
+            }
+
+            if (predicted == actual)
+                ++correct;
+        }
+
+        return static_cast<double>(correct) / static_cast<double>(TESTING_SIZE);
+    }
+
+    Matrix<double> predict(const Matrix<double>& x) {
+        return forward(x);
+    }
+
+    void save_weights(const std::string& _file_name) {
+        std::ofstream out(_file_name + ".dat", std::ofstream::trunc | std::ios::binary);
+        size_t size = hidden_layers.size();
+
+        out.write(reinterpret_cast<const char*>(&size), sizeof(size));
+        for (const auto& l : hidden_layers) 
+            out << l.weights << l.biases;                        
+        out.close();
+    }
+
+private:
     Matrix<double> forward(const Matrix<double>& _input) {
         Matrix<double> x = _input;
         std::uniform_real_distribution<> dropout_dist(0.0, 1.0);
@@ -58,8 +215,8 @@ private:
             layer.z = CU::basic_oper(CU::dot_product(layer.weights, x), layer.biases, Operation::ADD);
 
             if (begin != end - 1) {
-                layer.activation = CU::apply_function(layer.z, activation);
-
+                layer.activation = activacion(layer.z, h.activation_func);
+           
                 if (h.dropout) {
                     if (training_mode) {
                         for (size_t r = 0; r < layer.activation.rows(); ++r) {
@@ -75,7 +232,7 @@ private:
                 }
             }             
             else {
-                layer.activation = o_activation(layer.z);
+                layer.activation = softmax(layer.z);
             }
                 
             x = layer.activation;
@@ -96,7 +253,7 @@ private:
         const auto LAYERS = static_cast<int>(hidden_layers.size() - 2);
 
         for (int l = LAYERS; l >= 0; --l) {
-            Matrix<double> sp = CU::apply_function(hidden_layers[l].z, d_activation);       
+            Matrix<double> sp = activacion_deri(hidden_layers[l].z, h.activation_func);       
             Matrix<double> wTp = CU::dot_product(hidden_layers[l + 1].weights.transpose(), delta_i);
 
             for (size_t i = 0; i < wTp.rows(); ++i)
@@ -217,175 +374,53 @@ private:
         }
     }
 
-    void measure(
-        std::ofstream& _loss_file,
-        std::ofstream& _accuracy_file,
+    void save_measure(
+        std::string& _loss_file_path,
+        std::string& _accuracy_file_path,
         const size_t& _EPOCH,
         const double& _LOSS,
         const double& _ACCURACY,
-        const bool& _headers) {
+        const bool& _headers) {       
 
         if (_headers) {
-            _loss_file << "epoca,perdida\n";
-            _accuracy_file << "epoca,precision\n";
+            std::ofstream loss_file(_loss_file_path, std::ofstream::trunc);
+            std::ofstream accuracy_file(_accuracy_file_path, std::ofstream::trunc);
+
+            loss_file << "epoca,perdida\n";
+            accuracy_file << "epoca,precision\n";
+
+            loss_file.close();
+            accuracy_file.close();
         }
         else {
-            _loss_file << _EPOCH << ',' << _LOSS << '\n';
-            _loss_file.close();
-            _accuracy_file << _EPOCH << ',' << _ACCURACY << '\n';
-            _accuracy_file.close();
+            std::ofstream loss_file(_loss_file_path, std::ofstream::app);
+            std::ofstream accuracy_file(_accuracy_file_path, std::ofstream::app);
+
+            loss_file << _EPOCH << ',' << _LOSS << '\n';
+            accuracy_file << _EPOCH << ',' << _ACCURACY << '\n';
+
+            loss_file.close();
+            accuracy_file.close();
         }
     }
 
-
-public:
-
-    explicit MLP(const MLPHyperparameters& _h) : gen(std::random_device{}()), h(_h) {
-
-        const auto LAYERS_SIZE = h.layers.size();
-        const auto& layers = h.layers;
-
-        for (size_t i = 1; i < LAYERS_SIZE; ++i)
-            hidden_layers.emplace_back(layers[i - 1], layers[i], h.initializer, h.bias_init, gen);
+    Matrix<double> activacion(const Matrix<double>& _m, const Activation& _f) const {
+        if (_f == Activation::RELU)
+            return CU::apply_function(_m, ReluFunctor());
+        else if (_f == Activation::SIGMOID)
+            return CU::apply_function(_m, SigmoidFunctor());
+        else
+            return CU::apply_function(_m, TanhFunctor());
     }
 
-    explicit MLP(const std::string& _file_name, const MLPHyperparameters& _h)
-        : gen(std::random_device{}()), h(_h) {
-            
-        std::ifstream in(_file_name + ".dat", std::ios::binary);
+    Matrix<double> activacion_deri(const Matrix<double>& _m, const Activation& _f) const {
 
-        size_t size{};
-        in.read(reinterpret_cast<char*>(&size), sizeof(size));
-        hidden_layers.reserve(size);
-      
-        for (size_t i = 0; i < size; ++i) {      
-            MLP_Layer layer;
-            in >> layer.weights >> layer.biases;
-            hidden_layers.emplace_back(layer);
-        }
-
-        in.close();
-    }
-
-    ~MLP() = default;
-
-    void train(const std::vector<Matrix<double>>& _training_data_x,
-        const std::vector<Matrix<double>>& _training_data_y,
-        const std::vector<Matrix<double>>& _testing_data_x,
-        const std::vector<Matrix<double>>& _testing_data_y) {
-
-        if (_training_data_x.size() != _training_data_y.size()
-            || _testing_data_x.size() != _testing_data_y.size())
-            throw std::invalid_argument("E");
-                
-        auto get_random_name = [](std::mt19937& _gen, const size_t& _len) {
-            std::stringstream ss;
-            std::uniform_int_distribution<> dist(48, 57);
-
-            for (size_t i = 0; i < _len; ++i)
-                ss << static_cast<char>(dist(_gen));
-
-            return ss.str();
-            };
-
-        const auto TRAINING_SIZE = _training_data_x.size();
-        const auto LAYERS_SIZE = hidden_layers.size();
-
-        const auto LOSS_FILE_NAME = get_random_name(gen, 6) + "-mlp-loss.csv";
-        const auto ACCURACY_FILE_NAME = get_random_name(gen, 6) + "-mlp-accuracy.csv";
-        const auto DEBUG_FILE_NAME = get_random_name(gen, 6) + "-mlp-logger.log";
-        double total_loss = 0;
-
-        std::vector<size_t> random_indices(TRAINING_SIZE);
-        std::iota(random_indices.begin(), random_indices.end(), 0);
-
-        size_t begin{};
-        size_t end{};
-
-        std::ofstream debug_file(DEBUG_FILE_NAME, std::ofstream::trunc);
-        std::ofstream accuracy_file(ACCURACY_FILE_NAME, std::ofstream::trunc);
-        std::ofstream loss_file(LOSS_FILE_NAME, std::ofstream::trunc);
-
-        if (h.save_measure) measure(loss_file, accuracy_file, -1, -1, -1, true);
-
-        for (size_t e = 1; e <= h.epochs; ++e) {
-
-            training_mode = true;
-
-            if (h.shuffle) std::shuffle(random_indices.begin(), random_indices.end(), gen);
-
-            std::cout << "EPOCA: " << e << '\n';
-  
-            for (begin = 0; begin < TRAINING_SIZE; begin += h.batch) {
-                end = std::min(begin + h.batch, TRAINING_SIZE);
-                std::vector<Matrix<double>> batch_x, batch_y;
-                for (size_t j = begin; j < end; ++j) {
-                    batch_x.push_back(_training_data_x[random_indices[j]]);
-                    batch_y.push_back(_training_data_y[random_indices[j]]);
-                }
-                total_loss += update_mini_batch(batch_x, batch_y);
-            }
-
-            const auto accuracy = get_accuracy(_testing_data_x, _testing_data_y);
-
-            if (h.save_measure) measure(loss_file, accuracy_file, e, total_loss / static_cast<double>(TRAINING_SIZE), accuracy, false);
-
-            total_loss = 0;
-        }
-
-        debug_file.close();
-        accuracy_file.close();
-        loss_file.close();
-    }
-
-    double get_accuracy(const std::vector<Matrix<double>>& _testing_data_x,
-        const std::vector<Matrix<double>>& _testing_data_y) {
-
-        if (training_mode) training_mode = false;
-
-        int correct = 0;
-        const auto TESTING_SIZE = _testing_data_x.size();
-
-        for (size_t i = 0; i < TESTING_SIZE; ++i) {
-
-            auto y_pre = predict(_testing_data_x[i]);
-
-            size_t predicted = 0;
-            double max_prob = y_pre[0][0];
-            for (size_t j = 1; j < y_pre.rows(); ++j) {
-                if (y_pre[j][0] > max_prob) {
-                    max_prob = y_pre[j][0];
-                    predicted = j;
-                }
-            }
-
-            size_t actual = 0;
-            for (size_t j = 0; j < _testing_data_y[i].rows(); ++j) {
-                if (_testing_data_y[i][j][0] == 1.0) {
-                    actual = j;
-                    break;
-                }
-            }
-
-            if (predicted == actual)
-                ++correct;
-        }
-
-        return static_cast<double>(correct) / static_cast<double>(TESTING_SIZE);
-    }
-
-    Matrix<double> predict(const Matrix<double>& x) {
-        return forward(x);
-    }
-
-    void save_weights(const std::string& _file_name) {
-        std::ofstream out(_file_name + ".dat", std::ofstream::trunc | std::ios::binary);
-        size_t size = hidden_layers.size();
-
-        out.write(reinterpret_cast<const char*>(&size), sizeof(size));
-        for (const auto& l : hidden_layers) 
-            out << l.weights << l.biases;                        
-        out.close();
+        if (_f == Activation::RELU)
+            return CU::apply_function(_m, DReluFunctor());
+        else if (_f == Activation::SIGMOID)
+            return CU::apply_function(_m, DSigmoidFunctor());
+        else
+            return CU::apply_function(_m, DTanhFunctor());
     }
 
 };

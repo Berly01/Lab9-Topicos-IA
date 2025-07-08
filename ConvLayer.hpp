@@ -256,30 +256,24 @@ Matrix<double> ConvLayer::activacion(
     const Matrix<double>& _m,
     const Activation& _f) const {
 
-    Matrix<double> a;
     if (_f == Activation::RELU)
-        a = CU::apply_function(_m, ReluFunctor());
+        return CU::apply_function(_m, ReluFunctor());
     else if (_f == Activation::SIGMOID)
-        a = CU::apply_function(_m, SigmoidFunctor());
+        return CU::apply_function(_m, SigmoidFunctor());
     else
-        a = CU::apply_function(_m, TanhFunctor());
-
-    return a;
+        return CU::apply_function(_m, TanhFunctor());
 }
 
 Matrix<double> ConvLayer::activation_derivative(
     const Matrix<double>& _m,
     const Activation& _f) const {
 
-    Matrix<double> d;
     if (_f == Activation::RELU)
-        d = CU::apply_function(_m, DReluFunctor());
+        return CU::apply_function(_m, DReluFunctor());
     else if (_f == Activation::SIGMOID)
-        d = CU::apply_function(_m, DSigmoidFunctor());
+        return CU::apply_function(_m, DSigmoidFunctor());
     else
-        d = CU::apply_function(_m, DTanhFunctor());
-
-    return d;
+        return CU::apply_function(_m, DTanhFunctor());
 }
 
 Matrix<double> ConvLayer::pooling(
@@ -565,9 +559,8 @@ std::vector<Matrix<double>> ConvLayer::forward(
         ++k;
     }
 
-    std::cout << "\nRESULTADO FINAL: " << outputs[0].rows() << 'x' << outputs[0].cols() << 'x' << outputs.size() << '\n';
-
     if (h_.debug) {
+        std::cout << "\nRESULTADO FINAL: " << outputs[0].rows() << 'x' << outputs[0].cols() << 'x' << outputs.size() << '\n';
         int c = 1;
         for (const auto& m : outputs) {
             std::cout << "CANAL " << c << '\n';
