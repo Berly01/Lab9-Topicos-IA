@@ -11,6 +11,32 @@
 . Average pooling: gradiente se distribuye uniformemente
 
 
+```cpp
+   Matrix<double> activation_derivative(
+        const Matrix<double>& _m,
+        const Activation& _f) const;
+
+    Matrix<double> pooling_backward(
+        const Matrix<double>& _grad_output,
+        const Matrix<double>& _original_input,
+        const std::vector<std::pair<size_t, size_t>>& _pool_indices,
+        const size_t& _pool_size,
+        const PoolMode& _pool_mode) const;
+
+    std::vector<Matrix<double>> convolution_backward_input(
+        const Matrix<double>& _grad_output,
+        const std::vector<Matrix<double>>& _kernels,
+        const size_t& _input_rows,
+        const size_t& _input_cols,
+        const size_t& _padding,
+        const size_t& _stride) const;
+
+    std::vector<Matrix<double>> convolution_backward_kernel(
+        const Matrix<double>& _grad_output,
+        const std::vector<Matrix<double>>& _input_channels,
+        const size_t& _stride) const;
+
+```
 
 ### Estructuras de Cache
 
