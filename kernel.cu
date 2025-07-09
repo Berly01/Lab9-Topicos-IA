@@ -2,23 +2,20 @@
 #include "CNN.hpp"
 #include "MLP.hpp"
 
-void fashion_cnn() {
 
+void fashion_cnn() {
+    
     auto TRAIN_FASHION = DataLoader::cnn_load_one_channel("fashion", "train");
     auto TEST_FASHION = DataLoader::cnn_load_one_channel("fashion", "test");
-
+    
     auto& train_labels_data = std::get<0>(TRAIN_FASHION);
     auto& train_images_data = std::get<1>(TRAIN_FASHION);
 
     auto& test_labels_data = std::get<0>(TEST_FASHION);
     auto& test_images_data = std::get<1>(TEST_FASHION);
  
-    train_labels_data.erase(train_labels_data.begin(), train_labels_data.begin() + 59000);
-    train_images_data.erase(train_images_data.begin(), train_images_data.begin() + 59000);
-
-    test_labels_data.erase(test_labels_data.begin(), test_labels_data.begin() + 9500);
-    test_images_data.erase(test_images_data.begin(), test_images_data.begin() + 9500);
-
+    const size_t image_rows = 28;
+    const size_t image_cols = 28;
 
     ConvLayer::ConvLayerHyperparameters conv_params1;
     conv_params1.padding = true;
@@ -56,13 +53,13 @@ void fashion_cnn() {
     dense_params.use_bias = true;
     dense_params.init = Initializer::N_HE;
 
-    auto first_dense_layer = 8 * 8 * 4;
+    auto first_dense_layer_size = CNN::calculate_dense_layer_inputs(image_rows, image_cols, conv_layers);
 
     std::vector<DenseLayer> dense_layers;
-    dense_layers.emplace_back(first_dense_layer, 16, dense_params);
+    dense_layers.emplace_back(first_dense_layer_size, 16, dense_params);
 
     DenseLayer::DenseLayerHyperparameters output_params = dense_params;
-    output_params.use_activation = false;
+    output_params.use_activation = false; //Capa final, se utiliza softmax
     dense_layers.emplace_back(16, 10, output_params);
 
     CNN cnn(conv_layers, dense_layers);
@@ -89,21 +86,17 @@ void fashion_mlp() {
     auto& test_labels_data = std::get<0>(TEST_FASHION);
     auto& test_images_data = std::get<1>(TEST_FASHION);
 
-    train_labels_data.erase(train_labels_data.begin(), train_labels_data.begin() + 59000);
-    train_images_data.erase(train_images_data.begin(), train_images_data.begin() + 59000);
+    const size_t image_rows = 28;
+    const size_t image_cols = 28;
 
-    test_labels_data.erase(test_labels_data.begin(), test_labels_data.begin() + 9500);
-    test_images_data.erase(test_images_data.begin(), test_images_data.begin() + 9500);
- 
     MLP::MLPHyperparameters h;
     h.learning_rate = 0.002;
     h.batch = 32;
-    h.epochs = 1;
+    h.epochs = 20;
     h.shuffle = true;
     h.save_measure = true;
-    h.layers = { 784, 16, 10 };
+    h.layers = { image_rows * image_cols, 16, 10 };
     h.initializer = Initializer::N_HE;
-    h.optimizer = Optimizer::NONE;
     h.activation_func = Activation::RELU;
     h.verbose = true;
     h.print_every = 1;

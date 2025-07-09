@@ -1,3 +1,6 @@
+#ifndef CONVLAYER_HPP
+#define CONVLAYER_HPP
+
 #pragma once
 #include <vector>
 #include "functions.hpp"
@@ -180,6 +183,8 @@ ConvLayer::ConvLayer(
             int c = 1;
             for (const auto& channel : filters_[f]) {
                 std::cout << "CANAL " << c << '\n';
+                std::cout << '\n';
+                channel.print(12);
                 std::cout << '\n';
                 ++c;
             }
@@ -396,10 +401,11 @@ Matrix<double> ConvLayer::convolution(
     auto i_kernel = _kernels.begin();
 
     for (; i_channel != _input_channels.end(); ++i_channel, ++i_kernel) {
-        auto padded = h_.padding ? padding(*i_channel, _padding) : *i_channel;
+
+        auto& input = (*i_channel);
         const auto K = (*i_kernel).rows();
-        const size_t OUT_ROWS = (padded.rows() - K) / _stride + 1;
-        const size_t OUT_COLS = (padded.cols() - K) / _stride + 1;
+        const size_t OUT_ROWS = (input.rows() - K) / _stride + 1;
+        const size_t OUT_COLS = (input.cols() - K) / _stride + 1;
 
         Matrix<double> conv(OUT_ROWS, OUT_COLS, 0.0);
 
@@ -408,7 +414,7 @@ Matrix<double> ConvLayer::convolution(
                 double acc = 0.0;
                 for (size_t ki = 0; ki < K; ++ki)
                     for (size_t kj = 0; kj < K; ++kj)
-                        acc += (*i_kernel)[ki][kj] * padded[i * _stride + ki][j * _stride + kj];
+                        acc += (*i_kernel)[ki][kj] * input[i * _stride + ki][j * _stride + kj];
                 conv[i][j] = acc;
             }
         }
@@ -518,6 +524,7 @@ std::vector<Matrix<double>> ConvLayer::forward(
 
     std::vector<Matrix<double>> outputs;
 
+    // Aplicar paddding a canales de entrada si esta activado
     for (const auto& input : _input_channels) {
         cache_.padded_inputs.emplace_back(
             h_.padding ? padding(input, h_.padding_size) : input
@@ -568,7 +575,7 @@ std::vector<Matrix<double>> ConvLayer::forward(
         int c = 1;
         for (const auto& m : outputs) {
             std::cout << "CANAL " << c << '\n';
-            //m.print(12);
+            m.print(12);
             std::cout << '\n';
             ++c;
         }
@@ -661,7 +668,7 @@ std::vector<Matrix<double>> ConvLayer::backward(
             std::cout << "Filter " << f << " bias gradient: " << grad_biases_[f] << '\n';
             for (size_t c = 0; c < in_channels_; ++c) {
                 std::cout << "Filter " << f << " Channel " << c << " kernel gradient:\n";
-                //grad_filters_[f][c].print(12);
+                grad_filters_[f][c].print(12);
                 std::cout << '\n';
             }
         }
@@ -694,3 +701,5 @@ void ConvLayer::update_parameters() {
         }
     }
 }
+
+#endif

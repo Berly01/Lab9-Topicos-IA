@@ -111,7 +111,7 @@ public:
         size_t begin{};
         size_t end{};
 
-        if (h.save_measure) save_measure(LOSS_FILE_NAME, ACCURACY_FILE_NAME, -1, -1, -1, true);
+        if (h.save_measure) save_measure(LOSS_FILE_NAME, ACCURACY_FILE_NAME, 0, 0, 0, true);
 
         for (size_t e = 0; e < h.epochs; ++e) {
 

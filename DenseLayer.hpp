@@ -1,3 +1,6 @@
+#ifndef DENSELAYER_HPP
+#define DENSELAYER_HPP
+
 #pragma once
 #include "functions.hpp"
 #include "utils_cuda.hpp"
@@ -159,3 +162,5 @@ private:
     Matrix<double> cached_input_;
     Matrix<double> cached_linear_output_;
 };
+
+#endif

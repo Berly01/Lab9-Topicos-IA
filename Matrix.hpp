@@ -7,6 +7,7 @@
 #include <vector>
 #include <stdexcept>
 #include <functional>
+#include <iomanip>
 
 template <typename T>
 class Matrix {
@@ -196,6 +197,17 @@ public:
         }
         os << "]";
         return os;
+    }
+
+    void print(const size_t& _c) const {
+        std::cout << '[' << '\n';
+        for (const auto& rows : data) {
+            std::cout << '[';
+            for (const auto& value : rows)
+                std::cout << std::left << std::setw(_c) << value;
+            std::cout << ']' << '\n';
+        }
+        std::cout << ']';
     }
 
     friend std::ifstream& operator>>(std::ifstream& in, Matrix& m) {

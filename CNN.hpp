@@ -1,3 +1,6 @@
+#ifndef CNN_HPP
+#define CNN_HPP
+
 #pragma once
 #include "ConvLayer.hpp"
 #include "DenseLayer.hpp"
@@ -119,7 +122,7 @@ public:
         const auto LOSS_FILE_NAME = get_random_name(gen, 6) + "-cnn-loss.csv";
         const auto ACCURACY_FILE_NAME = get_random_name(gen, 6) + "-cnn-accuracy.csv";
 
-        if (params.save_measure) save_measure(LOSS_FILE_NAME, ACCURACY_FILE_NAME, -1, -1, -1, true);
+        if (params.save_measure) save_measure(LOSS_FILE_NAME, ACCURACY_FILE_NAME, 0, 0, 0, true);
 
         if (params.verbose) {
             std::cout << "Iniciando entrenamiento para " << params.epochs << " epocas" << std::endl;
@@ -201,7 +204,7 @@ public:
         
         size_t current_height = initial_height;
         size_t current_width = initial_width;
-        size_t current_channels = 1; // Asumiendo entrada inicial de 1 canal
+        size_t current_channels = 1; conv_layers[0].get_in_channels();
         
         for (const auto& layer : conv_layers) {
             size_t kernel_size = layer.get_kernel_size();
@@ -210,17 +213,14 @@ public:
             size_t pool_size = layer.get_pool_size();
             bool uses_pooling = layer.uses_pooling();
             
-            // Aplicar convolución: (input + 2*padding - kernel) / stride + 1
             current_height = (current_height + 2 * padding - kernel_size) / stride + 1;
             current_width = (current_width + 2 * padding - kernel_size) / stride + 1;
             
-            // Aplicar pooling si está habilitado
             if (uses_pooling && pool_size > 0) {
                 current_height = current_height / pool_size;
                 current_width = current_width / pool_size;
             }
             
-            // Actualizar número de canales de salida
             current_channels = layer.get_out_channels();
             
             if (current_height == 0 || current_width == 0) {
@@ -331,3 +331,5 @@ private:
     }
 
 };
+
+#endif
