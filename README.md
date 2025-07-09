@@ -1,6 +1,9 @@
 # Lab9-Topicos-IA
 
-## Backward Propagation Completo
+## Requisitos
+C++ 17, CUDA
+
+## Backward Propagation Completo (`ConvLayer.hpp`)
 
 ### Gradientes de Kernels: Calculados mediante convolución entre entrada y gradiente de salida
 ### Gradientes de Entrada: Calculados mediante convolución transpuesta con kernels volteados
@@ -40,9 +43,9 @@
 
 ### Estructuras de Cache
 
-. ForwardCache: Almacena salidas intermedias necesarias para el backward pass
-. Índices de Pooling: Guarda las posiciones de los elementos seleccionados en max/min pooling
+* ForwardCache: Almacena salidas intermedias necesarias para el backward pass
+* Índices de Pooling: Guarda las posiciones de los elementos seleccionados en max/min pooling
 
-### Capas Densas (DenseLayer)
+### Capas Densas (`DenseLayer.hpp`)
 
-. Implementación completa con forward y backward pass
+* Implementación completa con forward y backward pass
