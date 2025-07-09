@@ -20,10 +20,8 @@ public:
     DenseLayer(size_t input_size, size_t output_size, const DenseLayerHyperparameters& params)
         : input_size_(input_size), output_size_(output_size), params_(params), gen_(std::random_device{}()) {
 
-        // Inicializar pesos
         initialize_weights();
 
-        // Inicializar bias
         if (params_.use_bias) {
             biases_ = Matrix<double>(output_size_, 1, 0.0);
             std::uniform_real_distribution<double> bias_dist(-0.1, 0.1);
@@ -32,27 +30,21 @@ public:
             }
         }
 
-        // Inicializar gradientes
         grad_weights_ = Matrix<double>(output_size_, input_size_, 0.0);
         grad_biases_ = Matrix<double>(output_size_, 1, 0.0);
     }
 
     Matrix<double> forward(const Matrix<double>& input) {
-        // Guardar entrada para backward pass
         cached_input_ = input;
 
-        // Multiplicación matricial: input * weights
         Matrix<double> output = weights_ * input;
 
-        // Agregar bias
         if (params_.use_bias) {
             output + biases_;
         }
 
-        // Guardar salida antes de activación
         cached_linear_output_ = output;
 
-        // Aplicar activación
         if (params_.use_activation) {
             if (params_.activation_func == Activation::RELU) {
                 output = output.apply_function(relu);
@@ -71,7 +63,6 @@ public:
     Matrix<double> backward(const Matrix<double>& grad_output) {
         Matrix<double> grad = grad_output;
 
-        // Gradiente de activación
         if (params_.use_activation) {
             Matrix<double> activation_grad;
             if (params_.activation_func == Activation::RELU) {
@@ -84,7 +75,6 @@ public:
                 activation_grad = cached_linear_output_.apply_function(tanh_deri);
             }
 
-            // Multiplicación elemento a elemento
             for (size_t i = 0; i < grad.rows(); ++i) {
                 for (size_t j = 0; j < grad.cols(); ++j) {
                     grad[i][j] *= activation_grad[i][j];
@@ -92,11 +82,9 @@ public:
             }
         }
 
-        // Gradiente de pesos: input^T * grad
         grad_weights_ =  grad * cached_input_.transpose();
 
 
-        // Gradiente de bias
         if (params_.use_bias) {
             double bias_grad = 0.0;
             for (size_t i = 0; i < grad.rows(); ++i) {
@@ -107,21 +95,18 @@ public:
             }
         }
 
-        // Gradiente de entrada: grad * weights^T
         Matrix<double> grad_input =  weights_.transpose() * grad;
 
         return grad_input;
     }
 
     void update_parameters() {
-        // Actualizar pesos
         for (size_t i = 0; i < weights_.rows(); ++i) {
             for (size_t j = 0; j < weights_.cols(); ++j) {
                 weights_[i][j] -= params_.learning_rate * grad_weights_[i][j];
             }
         }
 
-        // Actualizar bias
         if (params_.use_bias) {
             for (size_t j = 0; j < biases_.cols(); ++j) {
                 biases_[j][0] -= params_.learning_rate * grad_biases_[j][0];
